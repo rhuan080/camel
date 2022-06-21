@@ -16,20 +16,77 @@
  */
 package org.apache.camel.dsl.jbang.core.commands;
 
-import picocli.CommandLine;
+import java.io.File;
+import java.io.FileInputStream;
+
+import org.apache.camel.util.OrderedProperties;
 import picocli.CommandLine.Command;
 
 @Command(name = "export",
-         description = "Export to other runtimes such as Spring Boot or Quarkus (use --help to see sub commands)")
-class Export extends CamelCommand {
+         description = "Export to other runtimes such as Spring Boot or Quarkus")
+class Export extends ExportBaseCommand {
 
     public Export(CamelJBangMain main) {
         super(main);
     }
 
     @Override
-    public Integer call() throws Exception {
-        new CommandLine(this).execute("--help");
-        return 0;
+    protected Integer export() throws Exception {
+        // read runtime and gav from profile if not configured
+        File profile = new File(getProfile() + ".properties");
+        if (profile.exists()) {
+            OrderedProperties prop = new OrderedProperties();
+            prop.load(new FileInputStream(profile));
+            if (this.runtime == null) {
+                this.runtime = prop.getProperty("camel.jbang.runtime");
+            }
+            if (this.gav == null) {
+                this.gav = prop.getProperty("camel.jbang.gav");
+            }
+            // allow configuring versions from profile
+            this.javaVersion = prop.getProperty("camel.jbang.javaVersion", this.javaVersion);
+            this.kameletsVersion = prop.getProperty("camel.jbang.kameletsVersion", this.kameletsVersion);
+            this.quarkusVersion = prop.getProperty("camel.jbang.quarkusVersion", this.quarkusVersion);
+            this.springBootVersion = prop.getProperty("camel.jbang.springBootVersion", this.springBootVersion);
+        }
+
+        if (runtime == null) {
+            System.err.println("The runtime option must be specified");
+            return 1;
+        }
+        if (gav == null) {
+            System.err.println("The gav option must be specified");
+            return 1;
+        }
+
+        if ("spring-boot".equals(runtime) || "camel-spring-boot".equals(runtime)) {
+            return export(new ExportSpringBoot(getMain()));
+        } else if ("quarkus".equals(runtime) || "camel-quarkus".equals(runtime)) {
+            return export(new ExportQuarkus(getMain()));
+        } else if ("camel-main".equals(runtime)) {
+            return export(new ExportCamelMain(getMain()));
+        } else {
+            System.err.println("Unknown runtime: " + runtime);
+            return 1;
+        }
     }
+
+    private Integer export(ExportBaseCommand cmd) throws Exception {
+        // copy properties from this to cmd
+        cmd.runtime = this.runtime;
+        cmd.gav = this.gav;
+        cmd.exportDir = this.exportDir;
+        cmd.fresh = this.fresh;
+        cmd.javaVersion = this.javaVersion;
+        cmd.kameletsVersion = this.kameletsVersion;
+        cmd.logging = this.logging;
+        cmd.loggingLevel = this.loggingLevel;
+        cmd.mainClassname = this.mainClassname;
+        cmd.quarkusVersion = this.quarkusVersion;
+        cmd.springBootVersion = this.springBootVersion;
+        cmd.mavenWrapper = this.mavenWrapper;
+        // run export
+        return cmd.export();
+    }
+
 }

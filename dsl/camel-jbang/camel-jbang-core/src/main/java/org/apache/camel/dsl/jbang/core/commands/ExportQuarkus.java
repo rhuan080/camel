@@ -27,14 +27,8 @@ import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.OrderedProperties;
 import org.apache.commons.io.FileUtils;
-import picocli.CommandLine;
 
-@CommandLine.Command(name = "quarkus", description = "Export as Quarkus project")
-class ExportQuarkus extends BaseExport {
-
-    @CommandLine.Option(names = { "--quarkus-version" }, description = "Quarkus version",
-                        defaultValue = "2.9.2.Final")
-    private String quarkusVersion;
+class ExportQuarkus extends Export {
 
     public ExportQuarkus(CamelJBangMain main) {
         super(main);
@@ -88,9 +82,13 @@ class ExportQuarkus extends BaseExport {
         // copy docker files
         copyDockerFiles();
         // gather dependencies
-        Set<String> deps = resolveDependencies(settings);
+        Set<String> deps = resolveDependencies(settings, profile);
         // create pom
         createPom(settings, new File(BUILD_DIR, "pom.xml"), deps);
+        // maven wrapper
+        if (mavenWrapper) {
+            copyMavenWrapper();
+        }
 
         if (exportDir.equals(".")) {
             // we export to current dir so prepare for this by cleaning up existing files
@@ -182,8 +180,8 @@ class ExportQuarkus extends BaseExport {
     }
 
     @Override
-    protected Set<String> resolveDependencies(File settings) throws Exception {
-        Set<String> answer = super.resolveDependencies(settings);
+    protected Set<String> resolveDependencies(File settings, File profile) throws Exception {
+        Set<String> answer = super.resolveDependencies(settings, profile);
 
         answer.removeIf(s -> s.contains("camel-core"));
         answer.removeIf(s -> s.contains("camel-platform-http"));

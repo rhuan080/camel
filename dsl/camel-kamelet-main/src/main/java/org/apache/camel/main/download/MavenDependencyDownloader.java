@@ -17,6 +17,8 @@
 package org.apache.camel.main.download;
 
 import java.io.File;
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -38,6 +40,7 @@ public class MavenDependencyDownloader extends ServiceSupport implements Depende
     private static final Logger LOG = LoggerFactory.getLogger(MavenDependencyDownloader.class);
     private static final String CP = System.getProperty("java.class.path");
 
+    private String[] bootClasspath;
     private DownloadThreadPool threadPool;
     private CamelContext camelContext;
     private DownloadListener downloadListener;
@@ -106,6 +109,11 @@ public class MavenDependencyDownloader extends ServiceSupport implements Depende
             }
         }
 
+        // we need version to be able to download from maven
+        if (version == null) {
+            return;
+        }
+
         String gav = groupId + ":" + artifactId + ":" + version;
         threadPool.download(LOG, () -> {
             LOG.debug("Downloading: {}", gav);
@@ -119,7 +127,7 @@ public class MavenDependencyDownloader extends ServiceSupport implements Depende
                 mavenRepos.addAll(Arrays.stream(repos.split(",")).collect(Collectors.toList()));
             }
             // include Apache snapshot to make it easy to use upcoming releases
-            if ("org.apache.camel".equals(groupId) && version != null && version.contains("SNAPSHOT")) {
+            if ("org.apache.camel".equals(groupId) && version.contains("SNAPSHOT")) {
                 mavenRepos.add(APACHE_SNAPSHOT_REPO);
             }
 
@@ -131,9 +139,9 @@ public class MavenDependencyDownloader extends ServiceSupport implements Depende
                     = (DependencyDownloaderClassLoader) camelContext.getApplicationContextClassLoader();
             for (MavenArtifact a : artifacts) {
                 File file = a.getFile();
-                // only add to classpath if not already present
+                // only add to classpath if not already present (do not trigger listener)
                 if (!alreadyOnClasspath(a.getGav().getGroupId(), a.getGav().getArtifactId(),
-                        a.getGav().getVersion())) {
+                        a.getGav().getVersion(), false)) {
                     classLoader.addFile(file);
                     LOG.trace("Added classpath: {}", a.getGav());
                 }
@@ -142,6 +150,10 @@ public class MavenDependencyDownloader extends ServiceSupport implements Depende
     }
 
     public boolean alreadyOnClasspath(String groupId, String artifactId, String version) {
+        return alreadyOnClasspath(groupId, artifactId, version, true);
+    }
+
+    private boolean alreadyOnClasspath(String groupId, String artifactId, String version, boolean listener) {
         // if no artifact then regard this as okay
         if (artifactId == null) {
             return true;
@@ -152,6 +164,18 @@ public class MavenDependencyDownloader extends ServiceSupport implements Depende
             target = target + "-" + version;
         }
 
+        if (bootClasspath != null) {
+            for (String s : bootClasspath) {
+                if (s.contains(target)) {
+                    if (listener && downloadListener != null) {
+                        downloadListener.onDownloadDependency(groupId, artifactId, version);
+                    }
+                    // already on classpath
+                    return true;
+                }
+            }
+        }
+
         if (camelContext.getApplicationContextClassLoader() != null) {
             ClassLoader cl = camelContext.getApplicationContextClassLoader();
             if (cl instanceof URLClassLoader) {
@@ -160,9 +184,8 @@ public class MavenDependencyDownloader extends ServiceSupport implements Depende
                     String s = u.toString();
                     if (s.contains(target)) {
                         // trigger listener
-                        DownloadListener listener = camelContext.getExtension(DownloadListener.class);
-                        if (listener != null) {
-                            listener.onAlreadyDownloadedDependency(groupId, artifactId, version);
+                        if (listener && downloadListener != null) {
+                            downloadListener.onDownloadDependency(groupId, artifactId, version);
                         }
                         // already on classpath
                         return true;
@@ -178,6 +201,15 @@ public class MavenDependencyDownloader extends ServiceSupport implements Depende
         threadPool = new DownloadThreadPool();
         threadPool.setCamelContext(camelContext);
         ServiceHelper.buildService(threadPool);
+    }
+
+    @Override
+    protected void doInit() throws Exception {
+        RuntimeMXBean mb = ManagementFactory.getRuntimeMXBean();
+        if (mb != null) {
+            bootClasspath = mb.getClassPath().split("[:|;]");
+        }
+        ServiceHelper.initService(threadPool);
     }
 
     @Override

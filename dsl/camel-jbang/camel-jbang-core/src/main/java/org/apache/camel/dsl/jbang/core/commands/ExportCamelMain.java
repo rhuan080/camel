@@ -29,15 +29,8 @@ import org.apache.camel.util.FileUtil;
 import org.apache.camel.util.IOHelper;
 import org.apache.camel.util.OrderedProperties;
 import org.apache.commons.io.FileUtils;
-import picocli.CommandLine;
 
-@CommandLine.Command(name = "standalone", description = "Export as standalone Camel Main project")
-class ExportCamelMain extends BaseExport {
-
-    @CommandLine.Option(names = { "--main-classname" },
-                        description = "The class name of the Camel Main application class",
-                        defaultValue = "CamelApplication")
-    private String mainClassname;
+class ExportCamelMain extends Export {
 
     public ExportCamelMain(CamelJBangMain main) {
         super(main);
@@ -92,9 +85,13 @@ class ExportCamelMain extends BaseExport {
         // create main class
         createMainClassSource(srcJavaDir, packageName, mainClassname);
         // gather dependencies
-        Set<String> deps = resolveDependencies(settings);
+        Set<String> deps = resolveDependencies(settings, profile);
         // create pom
         createPom(settings, new File(BUILD_DIR, "pom.xml"), deps, packageName);
+        // maven wrapper
+        if (mavenWrapper) {
+            copyMavenWrapper();
+        }
 
         if (exportDir.equals(".")) {
             // we export to current dir so prepare for this by cleaning up existing files
@@ -173,8 +170,8 @@ class ExportCamelMain extends BaseExport {
     }
 
     @Override
-    protected Set<String> resolveDependencies(File settings) throws Exception {
-        Set<String> answer = super.resolveDependencies(settings);
+    protected Set<String> resolveDependencies(File settings, File profile) throws Exception {
+        Set<String> answer = super.resolveDependencies(settings, profile);
 
         // remove out of the box dependencies
         answer.removeIf(s -> s.contains("camel-core"));

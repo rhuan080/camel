@@ -29,6 +29,8 @@ import net.thisptr.jackson.jq.Versions;
 import net.thisptr.jackson.jq.exception.JsonQueryException;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
+import org.apache.camel.InvalidPayloadException;
+import org.apache.camel.NoSuchHeaderOrPropertyException;
 import org.apache.camel.RuntimeCamelException;
 import org.apache.camel.TypeConverter;
 import org.apache.camel.spi.ExpressionResultTypeAware;
@@ -42,9 +44,11 @@ public class JqExpression extends ExpressionAdapter implements ExpressionResultT
     private Scope scope;
     private String resultTypeName;
     private Class<?> resultType;
-    private String headerName;
     private JsonQuery query;
     private TypeConverter typeConverter;
+
+    private String headerName;
+    private String propertyName;
 
     public JqExpression(String expression) {
         this(null, expression);
@@ -133,9 +137,24 @@ public class JqExpression extends ExpressionAdapter implements ExpressionResultT
 
     /**
      * Name of header to use as input, instead of the message body
+     * </p>
+     * It has as higher precedent than the propertyName if both are set.
      */
     public void setHeaderName(String headerName) {
         this.headerName = headerName;
+    }
+
+    public String getPropertyName() {
+        return propertyName;
+    }
+
+    /**
+     * Name of property to use as input, instead of the message body.
+     * </p>
+     * It has a lower precedent than the headerName if both are set.
+     */
+    public void setPropertyName(String propertyName) {
+        this.propertyName = propertyName;
     }
 
     @Override
@@ -162,10 +181,7 @@ public class JqExpression extends ExpressionAdapter implements ExpressionResultT
             JqFunctions.EXCHANGE_LOCAL.set(exchange);
 
             final List<JsonNode> outputs = new ArrayList<>(1);
-
-            final JsonNode payload = headerName == null
-                    ? exchange.getMessage().getMandatoryBody(JsonNode.class)
-                    : exchange.getMessage().getHeader(headerName, JsonNode.class);
+            final JsonNode payload = getPayload(exchange);
 
             this.query.apply(scope, payload, outputs::add);
 
@@ -193,5 +209,35 @@ public class JqExpression extends ExpressionAdapter implements ExpressionResultT
         }
 
         return null;
+    }
+
+    /**
+     * Determines the payload by looking at heders, properties and finally the payload.
+     *
+     * @param  exchange  the {@link Exchange} being processed
+     * @return           the {@link JsonNode} to be processed by the expression
+     * @throws Exception
+     */
+    private JsonNode getPayload(Exchange exchange) throws Exception {
+        JsonNode payload = null;
+
+        if (headerName == null && propertyName == null) {
+            payload = exchange.getMessage().getBody(JsonNode.class);
+            if (payload == null) {
+                throw new InvalidPayloadException(exchange, JsonNode.class);
+            }
+        } else {
+            if (headerName != null) {
+                payload = exchange.getMessage().getHeader(headerName, JsonNode.class);
+            }
+            if (payload == null && propertyName != null) {
+                payload = exchange.getProperty(propertyName, JsonNode.class);
+            }
+            if (payload == null) {
+                throw new NoSuchHeaderOrPropertyException(exchange, headerName, propertyName, JsonNode.class);
+            }
+        }
+
+        return payload;
     }
 }

@@ -63,7 +63,7 @@
     <avro-ipc-netty-version>1.11.0</avro-ipc-netty-version>
     <avro-version>1.11.0</avro-version>
     <awaitility-version>4.2.0</awaitility-version>
-    <aws-java-sdk2-version>2.17.211</aws-java-sdk2-version>
+    <aws-java-sdk2-version>2.17.212</aws-java-sdk2-version>
     <aws-xray-version>2.6.1</aws-xray-version>
     <axiom-version>1.2.14</axiom-version>
     <azure-cosmos-version>4.29.1</azure-cosmos-version>
@@ -189,7 +189,7 @@
     <elytron-web>1.8.0.Final</elytron-web>
     <exec-maven-plugin-version>1.6.0</exec-maven-plugin-version>
     <facebook4j-core-version>2.4.13</facebook4j-core-version>
-    <fastjson-version>1.2.80</fastjson-version>
+    <fastjson-version>1.2.83</fastjson-version>
     <findbugs-maven-plugin-version>3.0.5</findbugs-maven-plugin-version>
     <flatpack-version>4.0.5</flatpack-version>
     <flink-version>1.15.0</flink-version>
@@ -363,7 +363,7 @@
     <jzlib-version>1.1.3</jzlib-version>
     <kafka-version>3.1.1</kafka-version>
     <kafka-vertx-version>2.8.1</kafka-vertx-version>
-    <kotlin-version>1.6.21</kotlin-version>
+    <kotlin-version>1.7.0</kotlin-version>
     <kubernetes-client-version>5.12.2</kubernetes-client-version>
     <kubernetes-model-version>5.12.2</kubernetes-model-version>
     <kudu-version>1.15.0</kudu-version>
@@ -418,7 +418,7 @@
     <mongo-java-driver-version>4.6.0</mongo-java-driver-version>
     <mustache-java-version>0.9.10</mustache-java-version>
     <mvel-version>2.4.14.Final</mvel-version>
-    <mybatis-version>3.5.9</mybatis-version>
+    <mybatis-version>3.5.10</mybatis-version>
     <narayana-version>5.12.6.Final</narayana-version>
     <neoscada-version>0.4.0</neoscada-version>
     <nessus-ipfs-version>1.0.0.Beta4</nessus-ipfs-version>
