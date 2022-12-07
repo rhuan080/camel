@@ -27,6 +27,8 @@ import org.apache.camel.Consumer;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.component.aws2.sns.client.Sns2ClientFactory;
+import org.apache.camel.health.HealthCheckHelper;
+import org.apache.camel.impl.health.ComponentsHealthCheckRepository;
 import org.apache.camel.spi.HeaderFilterStrategy;
 import org.apache.camel.spi.HeaderFilterStrategyAware;
 import org.apache.camel.spi.Metadata;
@@ -70,6 +72,9 @@ public class Sns2Endpoint extends DefaultEndpoint implements HeaderFilterStrateg
     @UriParam
     private HeaderFilterStrategy headerFilterStrategy;
 
+    private ComponentsHealthCheckRepository healthCheckRepository;
+    private Sns2HealthCheck clientHealthCheck;
+
     public Sns2Endpoint(String uri, Component component, Sns2Configuration configuration) {
         super(uri, component);
         this.configuration = configuration;
@@ -103,6 +108,15 @@ public class Sns2Endpoint extends DefaultEndpoint implements HeaderFilterStrateg
         super.doInit();
         snsClient = configuration.getAmazonSNSClient() != null
                 ? configuration.getAmazonSNSClient() : Sns2ClientFactory.getSnsClient(configuration).getSNSClient();
+
+        healthCheckRepository = HealthCheckHelper.getHealthCheckRepository(getCamelContext(),
+                ComponentsHealthCheckRepository.REPOSITORY_ID, ComponentsHealthCheckRepository.class);
+
+        if (healthCheckRepository != null) {
+            clientHealthCheck = new Sns2HealthCheck(this, getId());
+        }
+
+        healthCheckRepository.addHealthCheck(clientHealthCheck);
 
         // check the setting the headerFilterStrategy
         if (headerFilterStrategy == null) {
@@ -192,6 +206,11 @@ public class Sns2Endpoint extends DefaultEndpoint implements HeaderFilterStrateg
             if (snsClient != null) {
                 snsClient.close();
             }
+        }
+
+        if (healthCheckRepository != null && clientHealthCheck != null) {
+            healthCheckRepository.removeHealthCheck(clientHealthCheck);
+            clientHealthCheck = null;
         }
         super.doStop();
     }
