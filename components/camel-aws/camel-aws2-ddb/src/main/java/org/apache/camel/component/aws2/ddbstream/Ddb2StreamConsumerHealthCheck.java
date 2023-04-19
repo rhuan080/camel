@@ -46,7 +46,7 @@ public class Ddb2StreamConsumerHealthCheck extends AbstractHealthCheck {
     @Override
     protected void doCall(HealthCheckResultBuilder builder, Map<String, Object> options) {
 
-        try {
+        try (DynamoDbStreamsClient client = ddb2StreamConsumer.getEndpoint().getClient()){
             Ddb2StreamConfiguration configuration = ddb2StreamConsumer.getEndpoint().getConfiguration();
             if (ObjectHelper.isNotEmpty(configuration.getRegion())) {
                 if (!DynamoDbStreamsClient.serviceMetadata().regions().contains(Region.of(configuration.getRegion()))) {
@@ -55,7 +55,6 @@ public class Ddb2StreamConsumerHealthCheck extends AbstractHealthCheck {
                     return;
                 }
             }
-            DynamoDbStreamsClient client = ddb2StreamConsumer.getEndpoint().getClient();
 
             client.listStreams(ListStreamsRequest.builder().limit(1).build());
         } catch (AwsServiceException e) {
